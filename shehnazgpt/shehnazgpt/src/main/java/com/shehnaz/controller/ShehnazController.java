@@ -2,25 +2,35 @@ package com.shehnaz.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.ai.embedding.EmbeddingModel;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.stringtemplate.v4.ST;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
 public class ShehnazController {
 
     private OpenAiChatModel chatModel;
+
+    @Autowired
+    private VectorStore vectorStore;
 
     private ChatClient chatClient;
     @Qualifier("openAiEmbeddingModel")
@@ -130,6 +140,25 @@ public class ShehnazController {
     public float[] embeddings(@RequestParam String text)
     {
         return embeddingModel.embed(text);
+    }
+
+    @GetMapping("/api/products")
+    public List<Document> getProducts(@RequestParam String query){
+
+//            return vectorStore.similaritySearch(query);
+        return vectorStore.similaritySearch(SearchRequest.builder().query(query).topK(2).build());
+
+    }
+
+    @GetMapping("/api/answer")
+    public String getAnswerWithRAG(@RequestParam String query)
+    {
+
+        return chatClient
+                .prompt(query)
+                .advisors(QuestionAnswerAdvisor.builder(vectorStore).build())
+                .call()
+                .content();
     }
 
 }
